@@ -1,5 +1,7 @@
 from re import X
 import slixmpp
+from slixmpp.exceptions import IqError, IqTimeout
+
 import logging
 from getpass import getpass
 from argparse import ArgumentParser
@@ -21,20 +23,41 @@ def mainMenu():
     3. Madar mensaje general
     """)
 
-class SendMsgBot(slixmpp.ClientXMPP):
+import logging
+from getpass import getpass
+from argparse import ArgumentParser
 
-    """
-    A basic Slixmpp bot that will log in, send a message,
-    and then log out.
-    """
+import slixmpp
 
-    def __init__(self, jid, password, recipient, message):
+class register_to_server(slixmpp.ClientXMPP):
+    def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
+        self.add_event_handler("register", self.register)
 
-        # The message we wish to send, and the JID that
-        # will receive it.
-        self.recipient = recipient
-        self.msg = message
+    def register(self, event):
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['register']['username'] = self.boundjid.user
+        resp['register']['password'] = self.password
+    
+        try:
+            resp.send()
+            print("Cuenta creada con exito")
+        except IqError:
+            print("No se pudo crear la cuenta")
+        except IqTimeout:
+            print("Sin respuesta del server")
+
+        self.disconnect()
+
+class Client(slixmpp.ClientXMPP):
+
+    """
+    A simple Slixmpp bot that will echo messages it
+    receives, along with a short thank you message.
+    """
+    def __init__(self, jid, password):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
 
         # The session_start event will be triggered when
         # the bot establishes its connection with the server
@@ -42,7 +65,14 @@ class SendMsgBot(slixmpp.ClientXMPP):
         # listen for this event so that we we can initialize
         # our roster.
         self.add_event_handler("session_start", self.start)
+
+        # The message event is triggered whenever a message
+        # stanza is received. Be aware that that includes
+        # MUC messages and error messages.
         self.add_event_handler("message", self.message)
+
+        self.add_event_handler("disconnected", self._handle_disconnected)
+        self.add_event_handler('failed_auth', self.failed_auth)
 
     async def start(self, event):
         """
@@ -60,20 +90,33 @@ class SendMsgBot(slixmpp.ClientXMPP):
         self.send_presence()
         await self.get_roster()
 
-        self.send_message(mto=self.recipient,
-                          mbody=self.msg,
-                          mtype='chat')
-    def message(self, msg):
-        if msg['type'] in ('chat', 'normal'):
-            print("Mensaje recibido")
+    def _handle_disconnected(self, event):
+        print("You got disconnected")
+        return super()._handle_disconnected(event)
+    
+    def failed_auth(self, event):
+        print("Incorrect Credentials")
         self.disconnect()
 
-    
+    def message(self, msg):
+        """
+        Process incoming message stanzas. Be aware that this also
+        includes MUC messages and error messages. It is usually
+        a good idea to check the messages's type before processing
+        or sending replies.
+
+        Arguments:
+            msg -- The received message stanza. See the documentation
+                   for stanza objects and the Message stanza to see
+                   how it may be used.
+        """
+        if msg['type'] in ('chat', 'normal'):
+            msg.reply("Thanks for sending\n%(body)s" % msg).send()
 
 
 if __name__ == '__main__':
     # Setup the command line arguments.
-    parser = ArgumentParser(description=SendMsgBot.__doc__)
+    parser = ArgumentParser(description=Client.__doc__)
 
     # Output verbosity options.
     parser.add_argument("-q", "--quiet", help="set logging to ERROR",
@@ -88,10 +131,6 @@ if __name__ == '__main__':
                         help="JID to use")
     parser.add_argument("-p", "--password", dest="password",
                         help="password to use")
-    parser.add_argument("-t", "--to", dest="to",
-                        help="JID to send the message to")
-    parser.add_argument("-m", "--message", dest="message",
-                        help="message to send")
 
     args = parser.parse_args()
 
@@ -103,18 +142,16 @@ if __name__ == '__main__':
         args.jid = input("Username: ")
     if args.password is None:
         args.password = getpass("Password: ")
-    if args.to is None:
-        args.to = input("Send To: ")
-    if args.message is None:
-        args.message = input("Message: ")
+    
+    xmpp = register_to_server(jid=args.jid, password=args.password)
+    xmpp.register_plugin('xep_0030')  # Service Discovery
+    xmpp.register_plugin('xep_0004')  # Data forms
+    xmpp.register_plugin('xep_0066')  # Out-of-band Data
+    xmpp.register_plugin('xep_0077')  # In-band Registration
+    xmpp.register_plugin('xep_0045')  # Groupchat
+    xmpp.register_plugin('xep_0199')  # XMPP Ping
+    xmpp['xep_0077'].force_registration = True
 
-    # Setup the EchoBot and register plugins. Note that while plugins may
-    # have interdependencies, the order in which you register them does
-    # not matter.
-    xmpp = SendMsgBot(args.jid, args.password, args.to, args.message)
-    xmpp.register_plugin('xep_0030') # Service Discovery
-    xmpp.register_plugin('xep_0199') # XMPP Ping
-
-    # Connect to the XMPP server and start processing XMPP stanzas.
     xmpp.connect()
-    xmpp.process()
+    xmpp.process(forever=False)
+
