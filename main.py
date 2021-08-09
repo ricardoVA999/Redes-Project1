@@ -1,9 +1,11 @@
 from logging import log
 from os import close
+from ssl import OP_NO_RENEGOTIATION
 
 from slixmpp import jid
 from client import register_to_server, my_client
 from getpass import getpass
+
 
 still_running = True
 
@@ -15,9 +17,16 @@ def logginMenu():
 
 def mainMenu():
     print('''
-    1. Ver conectados
-    2. Mandar mensaje privado
-    3. Madar mensaje general
+    1. Ver usuario y su estado
+    2. Agregar usuario a contactos
+    3. Mostrar detalles de un contacto
+    4. Mandar mensaje privado
+    5. Madar mensaje general
+    6. Definir mensaje de presencia
+    7. Enviar/recibir notificaciones
+    8. Enviar/recibir archivos
+    9. Cerrar Sesion
+    10. Eliminiar cuenta
     ''')
 
 def my_session(event):
@@ -29,8 +38,17 @@ def my_session(event):
         option = input("Ingrese su accion:")
         if option == "1":
             pass
-        else:
+        elif option == '9':
+            print("Cerrando Sesion...")
+            xmpp.disconnect()
             is_in_session = False
+        elif option == '10':
+            print('Eliminando cuenta...')
+            xmpp.delete()
+            xmpp.disconnect()
+            is_in_session = False
+        else:
+            print("Esa opcion no esta disponible.")
 
 
 

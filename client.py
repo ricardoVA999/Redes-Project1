@@ -36,7 +36,6 @@ class my_client(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.add_event_handler('disconnected', self.got_diss)
-        self.add_event_handler('session_start', self.start)
         self.add_event_handler('failed_auth', self.failed)
         self.add_event_handler('error', self.handle_error)
 
@@ -66,15 +65,24 @@ class my_client(slixmpp.ClientXMPP):
         self.disconnect()
 
     def start(self):
-        try:
-            self.get_roster(block=True)
-        except IqError as err:
-            print('Error: %s' % err.iq['error']['condition'])
-        except IqTimeout:
-            print('Error: Request timed out')
-        
         self.send_presence()
-        print("Si se conecto")
+        self.get_roster()
 
     def got_diss(self, event):
         print('Got disconnected...')
+    
+    def delete(self):
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['from'] = self.boundjid.full
+        resp['register']['remove'] = True
+
+        try:
+            resp.send()
+            print("Cuenta "+self.boundjid+" eliminada con exito...")
+        except IqError as err:
+            print("No se pudo eliminar la cuenta", self.boundjid)
+            self.disconnect()
+        except IqTimeout:
+            print("No se recibio respuesta del servidor")
+            self.disconnect()
