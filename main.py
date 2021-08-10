@@ -1,6 +1,8 @@
 from logging import log
 from os import close
+from re import U
 from ssl import OP_NO_RENEGOTIATION
+import asyncio
 
 from slixmpp import jid
 from client import register_to_server, my_client
@@ -17,16 +19,15 @@ def logginMenu():
 
 def mainMenu():
     print('''
-    1. Ver usuario y su estado
+    1. Ver usuarios conectados
     2. Agregar usuario a contactos
     3. Mostrar detalles de un contacto
     4. Mandar mensaje privado
     5. Madar mensaje general
     6. Definir mensaje de presencia
-    7. Enviar/recibir notificaciones
-    8. Enviar/recibir archivos
-    9. Cerrar Sesion
-    10. Eliminiar cuenta
+    7. Enviar/recibir archivos
+    8. Cerrar Sesion
+    9. Eliminiar cuenta
     ''')
 
 def my_session(event):
@@ -37,12 +38,33 @@ def my_session(event):
         mainMenu()
         option = input("Ingrese su accion:")
         if option == "1":
-            pass
-        elif option == '9':
+            users = xmpp.get_all_users()
+            print('--------Todos los usuarios--------')
+            print(users)
+            print('----------------------------------')
+
+        elif option == '2':
+            print('--------Registremos un nuevo contacto a tu lista--------')
+            contact_jid = input('Ingrese el JID del usuario que desea agregar:')
+            if '@' in contact_jid:
+                xmpp.add_friend(contact_jid)
+                print("Amigo añadido correctamente!")
+            else:
+                print('El dato ingresado no es compatible')
+            print('----------------------------------')
+        
+        elif option == '3':
+            uname = input('Ingrese el nombre de usuario que desea buscar:')
+            data, amount = xmpp.get_user_info(uname)
+            if not data:
+                print('Usuario no encontrado...')
+            else:
+                print(data, amount)
+        elif option == '8':
             print("Cerrando Sesion...")
             xmpp.disconnect()
             is_in_session = False
-        elif option == '10':
+        elif option == '9':
             print('Eliminando cuenta...')
             xmpp.delete()
             xmpp.disconnect()
