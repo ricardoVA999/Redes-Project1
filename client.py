@@ -1,16 +1,16 @@
 import asyncio
-from logging import error, fatal
-from re import X, search
-import re
-import threading
+from asyncio.events import get_event_loop
+from asyncio.tasks import wait
+
 from xml.etree.ElementTree import fromstring
 import slixmpp
-from slixmpp import jid
+
 from slixmpp.exceptions import IqError, IqTimeout
-from slixmpp.plugins.xep_0004.stanza import field
+
 from slixmpp.plugins.xep_0004.stanza.form import Form
 from xml.etree import cElementTree as ET
 import time
+from get_my_roster import GetRoster
 
 
 #Usando ejemplo de xmpp obtenido de https://docplayer.net/60687805-Slixmpp-documentation.html
@@ -42,15 +42,19 @@ class register_to_server(slixmpp.ClientXMPP):
 class my_client(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
+        self.jid = jid
+        self.password = password
 
         self.users = {}
         self.friends = {}
+        self.rooms = {}
 
         self.add_event_handler('disconnected', self.got_diss)
         self.add_event_handler('failed_auth', self.failed)
         self.add_event_handler('error', self.handle_error)
         self.add_event_handler('presence_subscribed', self.new_subscribed)
         self.add_event_handler('changed_status', self.wait_presences)
+        self.add_event_handler('message', self.received_message)
 
         self.register_plugin('xep_0030')
         self.register_plugin('xep_0004')
@@ -65,17 +69,33 @@ class my_client(slixmpp.ClientXMPP):
         self.register_plugin('xep_0095')
         self.register_plugin('xep_0096')
         self.register_plugin('xep_0047')
+        self.register_plugin('xep_0060')
+        self.register_plugin('xep_0199')
 
         self['xep_0077'].force_registration = True
 
         self.received = set()
-        self.presences_received = threading.Event()
+        self.presences_received = asyncio.Event()
 
-    def handle_error(self):
+    def received_message(self, msg):
+        sender = str(msg['from'])
+        jid = sender.split('/')[0]
+        username = jid.split('@')[0]
+        if msg['type'] in ('chat', 'normal'):
+            print('Nuevo mensaje de:', jid)
+            
+            if not jid in self.friends:
+                self.friends[jid] = user(
+                    jid, '', '', '', '', username)
+
+            self.friends[jid].messages.append(msg['body'])
+
+
+    def handle_error(self, event):
         print("ERROR")
         self.disconnect()
 
-    def failed(self):
+    def failed(self, event):
         print("Fallo al comprobar sus credenciales...")
         self.disconnect()
 
@@ -113,71 +133,41 @@ class my_client(slixmpp.ClientXMPP):
             print("No se recibio respuesta del servidor")
             self.disconnect()
     
-    def get_all_users(self):
+    def create_room(self, room, nick):
+        status = 'NEW'
 
-        iq = self.Iq()
-        iq.set_from(self.boundjid.full)
-        iq.set_to('search.'+self.boundjid.domain)
-        iq.set_type('get')
-        iq.set_query('jabber:iq:search')
+        self.plugin['xep_0045'].joinMUC(room,nick,pstatus=status,pfrom=self.boundjid.full)
 
-        iq.send()
+        self.plugin['xep_0045'].setAffiliation(room, self.boundjid.full, affiliation='owner')
+        self.plugin['xep_0045'].configureRoom(room, ifrom=self.boundjid.full)
 
-        form = Form()
-        form.set_type('sumbit')
+        self.rooms[room] = group(room, nick, status)
 
-        form.add_field(var='FORM_TYPE', ftype='hidden', type='hidden', value='jabber:iq:search')
-        form.add_field(var='search', ftype='text-single', type='text-single', label='Search', required=True, value='*')
-        form.add_field(var='Username', ftype='boolean', type='boolean', label='Username', value=1)
-        form.add_field(var='Name', ftype='boolean', type='boolean', label='Name', value=1)
-        form.add_field(var='Email', ftype='boolean', type='boolean', label='Email', value=1)
+    def join_room(self, room, nick):
+        status = 'available'
+        self.plugin['xep_0045'].joinMUC(room,nick,pstatus=status,pfrom=self.boundjid.full)
+        if not room in self.room_dict:
+            self.rooms[room] = group(room, nick, status)
+    
+    def get_my_roster(self):
+        xmpp2 = GetRoster(self.jid, self.password)
+        xmpp2.register_plugin('xep_0030')  # Service Discovery
+        xmpp2.register_plugin('xep_0004')  # Data forms
+        xmpp2.register_plugin('xep_0066')  # Out-of-band Data
+        xmpp2.register_plugin('xep_0077')  # In-band Registration
+        xmpp2.register_plugin('xep_0045')  # Groupchat
+        xmpp2.register_plugin('xep_0199')  # XMPP Ping
+        xmpp2['xep_0077'].force_registration = True
+        xmpp2.connect()
+        xmpp2.process(forever=False)
 
-        search = self.Iq()
-        search.set_type('set')
-        search.set_to('search.'+self.boundjid.domain)
-        search.set_from(self.boundjid.full)
-
-        my_query = ET.Element('{jabber:iq:search}query')
-        my_query.append(form.xml)
-
-        search.append(my_query)
-        
-        resp = yield from search.send()
-
-        print(resp)
-
-        tree = ET.fromstring(str(resp))
-
-        data = []
-
-        for i in tree:
-            for j in i:
-                for k in j:
-                    data.append[k]
-
-
-        for item in data:
-            children = item.getchildren()
-
-            if len(children) > 0:
-                for i in children:
-                    try:
-                        child = i.getchildren()[0]
-                    except:
-                        continue
-
-                    if i.attribp['var'] == 'Email':
-                        email = child.text
-                    elif i.attribp['var'] == 'jid':
-                        jid = child.text
-                    elif i.attribp['var'] == 'Name':
-                        name = child.text
-                    elif i.attribp['var'] == 'Username':
-                        user_na = child.text
-                if jid:
-                    self.users[jid] = [user_na, name, email]
-
-        return self.users
+    def send_private_message(self, to, msg):
+        jid = self.boundjid.bare
+        self.send_message(mto=to, mbody=msg, mtype='chat',mfrom=self.boundjid.bare)
+        if to in self.friends and msg:
+            self.friends[to].messages.append(msg)
+        if msg:
+            print("Se mando el mensaje")
     
     def add_friend(self, JID):
         self.send_presence_subscription(pto=JID, ptype='subscribe', pfrom = self.boundjid.bare)
@@ -187,16 +177,17 @@ class my_client(slixmpp.ClientXMPP):
         time.sleep(1)
         self.create_friends_dict()
 
-    def get_friends(self):
-        if not self.friends():
-            self.create_friends_dict()
-        return self.friends()
+    def get_user_info(self, jid):
+        if jid in self.friends.keys():
+            return "JID: " + self.friends[jid].jid + ' Subscription: ' + self.friends[jid].subscription + ' Username: ' + self.friends[jid].username
+        else:
+            return "Usuario no encontrado dentro de sus amigos"
 
     def create_friends_dict(self):
         self.get_roster()
         groups = self.client_roster.groups()
-        if groups:
-            for jid in groups['']:
+        for group in groups:
+            for jid in groups[group]:
                 if jid == self.boundjid.bare or 'conference' in jid:
                     continue
 
@@ -238,3 +229,10 @@ class user():
         self.resource = resource
         if subscription:
             self.subscription = subscription
+
+class group():
+    def __init__(self, room, nick, status=None):
+        self.room = room
+        self.nick = nick
+        self.status = status
+        self.messages = []

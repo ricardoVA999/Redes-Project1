@@ -1,10 +1,10 @@
 from logging import log
 from os import close
-from re import U
+from re import U, X
 from ssl import OP_NO_RENEGOTIATION
-import asyncio
+from slixmpp import roster
+from slixmpp.xmlstream.asyncio import asyncio
 
-from slixmpp import jid
 from client import register_to_server, my_client
 from getpass import getpass
 
@@ -17,9 +17,17 @@ def logginMenu():
     2. Registrar nueva cuenta
     3. Salir''')
 
+def groupMenu():
+    print('''--------Menu de Grupos--------
+    1. Crear Grupo
+    2. Unirse a Grupo
+    3. Mandar mensaje a grupo
+    4. Salir de grupo
+    5. Cancelar''')
+
 def mainMenu():
     print('''
-    1. Ver usuarios conectados
+    1. Ver mi roster
     2. Agregar usuario a contactos
     3. Mostrar detalles de un contacto
     4. Mandar mensaje privado
@@ -38,9 +46,8 @@ def my_session(event):
         mainMenu()
         option = input("Ingrese su accion:")
         if option == "1":
-            users = xmpp.get_all_users()
-            print('--------Todos los usuarios--------')
-            print(users)
+            print('----------------------------------')
+            xmpp.get_my_roster()
             print('----------------------------------')
 
         elif option == '2':
@@ -55,11 +62,57 @@ def my_session(event):
         
         elif option == '3':
             uname = input('Ingrese el nombre de usuario que desea buscar:')
-            data, amount = xmpp.get_user_info(uname)
-            if not data:
-                print('Usuario no encontrado...')
+            if '@' in uname:
+                data = xmpp.get_user_info(uname)
+                print(data)
             else:
-                print(data, amount)
+                print('El dato ingresado no es compatible')
+
+        elif option == '4':
+            print('--------Enviando mensaje--------')
+            roster = xmpp.friends
+            users = list(roster.keys())
+            print('Usuarios a mandar mensaje:')
+            for user in users:
+                print(user)
+            uname = input('Ingrese el JID del usuario a mandar mensaje:')
+            if '@' in uname:
+                received_messages = roster[uname].messages
+                if received_messages:
+                    print('Los mensajes con: '+uname+' son: ')
+                    for msg in received_messages:
+                        print("-"+msg)
+                
+                to_send = input("Mensaje a enviar:")
+                xmpp.send_private_message(uname, to_send)
+            else:
+                print('El dato ingresado no es compatible')
+            print('----------------------------------')
+        elif option == '5':
+            groupMenu()
+            groupOpt = input("Ingrese su opcion: ")
+            if groupOpt == '1':
+                print('--------Creando nuevo grupo--------')
+                name = input('Group URL: ')
+                nick = input('Nickname: ')
+                if nick and name:
+                    xmpp.create_room(name, nick)
+                    print("Grupo Creado!")
+                else:
+                    ("Ingrese valores correctos")
+                    continue
+            elif groupOpt == '2':
+                print('--------Unirse a grupo--------')
+                name = input('Room URL: ')
+                nick = input('Nick: ')
+                if nick and name:
+                    xmpp.join_room(name, nick)
+                    print("Unido correctamente")
+                else:
+                    print("Datos ingresados incorrectamente")
+                    continue
+            else:
+                print('Opcion no valida')
         elif option == '8':
             print("Cerrando Sesion...")
             xmpp.disconnect()
@@ -89,7 +142,7 @@ while(still_running):
         xmpp.add_event_handler('session_start', my_session)
 
         xmpp.connect()
-        xmpp.process(forever=False)
+        xmpp.process()
         
     elif choice == '2':
         print('\n--------Registremos un nuevo usuario--------')
