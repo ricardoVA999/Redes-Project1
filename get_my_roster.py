@@ -25,10 +25,10 @@ class GetRoster(slixmpp.ClientXMPP):
         self.add_event_handler("changed_status", self.wait_for_presences)
         self.add_event_handler('disconnected', self.got_diss)
 
-        self.register_plugin('xep_0030') # Service Discovery
-        self.register_plugin('xep_0199') # XMPP Ping
-        self.register_plugin('xep_0045') # Mulit-User Chat (MUC)
-        self.register_plugin('xep_0096') # Jabber Search
+        self.register_plugin('xep_0030')
+        self.register_plugin('xep_0199')
+        self.register_plugin('xep_0045')
+        self.register_plugin('xep_0096')
 
         self.received = set()
         self.presences_received = asyncio.Event()

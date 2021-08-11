@@ -41,7 +41,7 @@ class my_client(slixmpp.ClientXMPP):
         self.add_event_handler('failed_auth', self.failed)
         self.add_event_handler('error', self.handle_error)
         self.add_event_handler('presence_subscribed', self.new_subscribed)
-        self.add_event_handler('message', self.received_message)
+        self.add_event_handler('message', self.message)
 
         self.register_plugin('xep_0030')
         self.register_plugin('xep_0004')
@@ -60,13 +60,16 @@ class my_client(slixmpp.ClientXMPP):
 
         self['xep_0077'].force_registration = True
 
-    def received_message(self, msg):
+    def message(self, msg):
         sender = str(msg['from'])
         jid = sender.split('/')[0]
         username = jid.split('@')[0]
         if msg['type'] in ('chat', 'normal'):
-            print('Nuevo mensaje de:'+jid+' dice:'+msg['body'])
-
+            print('Nuevo mensaje de: '+username+' dice: '+msg['body'])
+        elif msg['type'] in ('groupchat', 'normal'):
+            nick  = sender.split('/')[1]
+            if jid != self.jid:
+                print('Nuevo mensaje del grupo: '+nick+' de: '+jid+' dice: '+msg['body'])
 
     def handle_error(self, event):
         print("ERROR")
@@ -78,7 +81,6 @@ class my_client(slixmpp.ClientXMPP):
     def start(self):
         self.send_presence()
         self.get_roster()
-        time.sleep(3)
 
     def got_diss(self, event):
         print('Got disconnected...')
@@ -111,21 +113,8 @@ class my_client(slixmpp.ClientXMPP):
         self.plugin['xep_0045'].configureRoom(room, ifrom=self.boundjid.full)
 
         self.rooms[room] = group(room, nick, status)"""
-
-    """def join_room(self, room, nick):
-        status = 'available'
-        self.plugin['xep_0045'].joinMUC(room,nick,pstatus=status,pfrom=self.boundjid.full)
-        if not room in self.room_dict:
-            self.rooms[room] = group(room, nick, status)"""
     
     def add_friend(self, JID):
         self.send_presence_subscription(pto=JID, ptype='subscribe', pfrom = self.boundjid.bare)
         self.get_roster()
         time.sleep(3)
-
-class group():
-    def __init__(self, room, nick, status=None):
-        self.room = room
-        self.nick = nick
-        self.status = status
-        self.messages = []

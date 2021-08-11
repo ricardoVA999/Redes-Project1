@@ -2,6 +2,8 @@ from slixmpp.xmlstream.asyncio import asyncio
 
 from client import register_to_server, my_client
 from get_my_roster import GetRoster
+from private_msg import PrivMsg
+from muc import *
 from getpass import getpass
 import time
 
@@ -17,10 +19,8 @@ def logginMenu():
 def groupMenu():
     print('''--------Menu de Grupos--------
     1. Crear Grupo
-    2. Unirse a Grupo
-    3. Mandar mensaje a grupo
-    4. Salir de grupo
-    5. Cancelar''')
+    2. Unirse y mandar mensaje a grupo
+    3. Cancelar''')
 
 def mainMenu():
     print('''
@@ -73,6 +73,12 @@ def my_session(event):
             uname = input('Ingrese el JID del usuario a mandar mensaje:')
             if '@' in uname:
                 to_send = input("Mensaje a enviar:")
+                if to_send:
+                    my_priv = PrivMsg(my_client_session.jid, my_client_session.password, uname, to_send)
+                    my_priv.connect()
+                    my_priv.process(forever=False)
+                else:
+                    print('No se encontro mensaje a mandar')
             else:
                 print('El dato ingresado no es compatible')
             print('----------------------------------')
@@ -92,8 +98,10 @@ def my_session(event):
                 print('--------Unirse a grupo--------')
                 name = input('Room URL: ')
                 nick = input('Nick: ')
-                if nick and name:
-                    print("Unido correctamente")
+                if nick and name and '@conference.' in name:
+                    group_join = join_group(my_client_session.jid, my_client_session.password, name, nick)
+                    group_join.connect()
+                    group_join.process(forever=False)
                 else:
                     print("Datos ingresados incorrectamente")
                     continue
