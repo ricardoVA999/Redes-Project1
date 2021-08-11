@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-
-# Slixmpp: The Slick XMPP Library
-# Copyright (C) 2011  Nathanael C. Fritz
-# This file is part of Slixmpp.
-# See the file LICENSE for copying permission.
-
+#Usando como referencia el codigo ejemplo de https://github.com/poezio/slixmpp/blob/master/examples/roster_browser.py
 import slixmpp
 from slixmpp.exceptions import IqError, IqTimeout
 from slixmpp.xmlstream.asyncio import asyncio
@@ -17,20 +11,32 @@ class GetRoster(slixmpp.ClientXMPP):
     the command line.
     """
 
-    def __init__(self, jid, password):
+    def __init__(self, jid, password, u_search = None):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         # The session_start event will be triggered when
         # the bot establishes its connection with the server
         # and the XML streams are ready for use. We want to
         # listen for this event so that we we can initialize
         # our roster.
+        self.roster = {}
+        self.u_search = u_search
+
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("changed_status", self.wait_for_presences)
         self.add_event_handler('disconnected', self.got_diss)
+
+        self.register_plugin('xep_0030') # Service Discovery
+        self.register_plugin('xep_0199') # XMPP Ping
+        self.register_plugin('xep_0045') # Mulit-User Chat (MUC)
+        self.register_plugin('xep_0096') # Jabber Search
+
         self.received = set()
         self.presences_received = asyncio.Event()
-    def got_diss(self):
+
+    def got_diss(self, event):
         print('Got disconnected')
+        quit()
+        
 
     async def start(self, event):
         """
@@ -57,16 +63,35 @@ class GetRoster(slixmpp.ClientXMPP):
         print('El roster de %s es:' % self.boundjid.bare)
         groups = self.client_roster.groups()
         for group in groups:
-            print('\n%s' % group)
             for jid in groups[group]:
+                status = ''
+                show = ''
+                sub = ''
+                name = ''
                 sub = self.client_roster[jid]['subscription']
+                conexion = self.client_roster.presence(jid)
                 name = self.client_roster[jid]['name']
-                if jid == self.boundjid.bare:
-                    continue
-                elif self.client_roster[jid]['name']:
-                    print('%s (%s) [%s]' % (name, jid, sub))
-                else:
-                    print('%s ---- %s' % (jid, sub))
+                for answer, pres in conexion.items():
+                    if pres['show']:
+                        show = pres['show']
+                    if pres['status']:
+                        status = pres['status']
+                self.roster[jid] = User(jid, show, status, sub, name)
+
+        if(not self.u_search):
+            if len(self.roster) == 0:
+                print("No hay usuario conectados")
+            else:
+                for key in self.roster.keys():
+                    friend = self.roster[key]
+                    print("- Jid: "+friend.jid+" Username:"+friend.username+" Show:"+friend.show+" Status:"+friend.status+" Subscription:"+friend.subscription)
+        else:
+            if self.u_search in self.roster.keys():
+                user = self.roster[self.u_search]
+                print("- Jid: "+user.jid+" Username:"+user.username+" Show:"+user.show+" Status:"+user.status+" Subscription:"+user.subscription)
+            else:
+                print("Usuario no encontrado")
+        await asyncio.sleep(5)
         self.disconnect()
 
     def wait_for_presences(self, pres):
@@ -78,3 +103,12 @@ class GetRoster(slixmpp.ClientXMPP):
             self.presences_received.set()
         else:
             self.presences_received.clear()
+
+
+class User():
+    def __init__(self, jid, show, status, subscription, username):
+        self.jid = jid
+        self.show = show
+        self.status = status
+        self.subscription = subscription
+        self.username = username

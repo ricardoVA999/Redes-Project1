@@ -1,12 +1,9 @@
-from logging import log
-from os import close
-from re import U, X
-from ssl import OP_NO_RENEGOTIATION
-from slixmpp import roster
 from slixmpp.xmlstream.asyncio import asyncio
 
 from client import register_to_server, my_client
+from get_my_roster import GetRoster
 from getpass import getpass
+import time
 
 
 still_running = True
@@ -40,21 +37,23 @@ def mainMenu():
 
 def my_session(event):
     is_in_session = True
-    xmpp.start()
-    print("Bienvenido:", xmpp.boundjid.bare)
+    my_client_session.start()
+    print("Bienvenido:", my_client_session.boundjid.bare)
     while is_in_session:
         mainMenu()
         option = input("Ingrese su accion:")
         if option == "1":
             print('----------------------------------')
-            xmpp.get_my_roster()
+            get_my_roster = GetRoster(my_client_session.jid, my_client_session.password)
+            get_my_roster.connect()
+            get_my_roster.process(forever=False)
             print('----------------------------------')
 
         elif option == '2':
             print('--------Registremos un nuevo contacto a tu lista--------')
             contact_jid = input('Ingrese el JID del usuario que desea agregar:')
             if '@' in contact_jid:
-                xmpp.add_friend(contact_jid)
+                my_client_session.add_friend(contact_jid)
                 print("Amigo añadido correctamente!")
             else:
                 print('El dato ingresado no es compatible')
@@ -63,28 +62,17 @@ def my_session(event):
         elif option == '3':
             uname = input('Ingrese el nombre de usuario que desea buscar:')
             if '@' in uname:
-                data = xmpp.get_user_info(uname)
-                print(data)
+                get_my_roster = GetRoster(my_client_session.jid, my_client_session.password,uname)
+                get_my_roster.connect()
+                get_my_roster.process(forever=False)
             else:
                 print('El dato ingresado no es compatible')
 
         elif option == '4':
             print('--------Enviando mensaje--------')
-            roster = xmpp.friends
-            users = list(roster.keys())
-            print('Usuarios a mandar mensaje:')
-            for user in users:
-                print(user)
             uname = input('Ingrese el JID del usuario a mandar mensaje:')
             if '@' in uname:
-                received_messages = roster[uname].messages
-                if received_messages:
-                    print('Los mensajes con: '+uname+' son: ')
-                    for msg in received_messages:
-                        print("-"+msg)
-                
                 to_send = input("Mensaje a enviar:")
-                xmpp.send_private_message(uname, to_send)
             else:
                 print('El dato ingresado no es compatible')
             print('----------------------------------')
@@ -96,7 +84,6 @@ def my_session(event):
                 name = input('Group URL: ')
                 nick = input('Nickname: ')
                 if nick and name:
-                    xmpp.create_room(name, nick)
                     print("Grupo Creado!")
                 else:
                     ("Ingrese valores correctos")
@@ -106,7 +93,6 @@ def my_session(event):
                 name = input('Room URL: ')
                 nick = input('Nick: ')
                 if nick and name:
-                    xmpp.join_room(name, nick)
                     print("Unido correctamente")
                 else:
                     print("Datos ingresados incorrectamente")
@@ -115,18 +101,16 @@ def my_session(event):
                 print('Opcion no valida')
         elif option == '8':
             print("Cerrando Sesion...")
-            xmpp.disconnect()
+            my_client_session.disconnect()
             is_in_session = False
         elif option == '9':
             print('Eliminando cuenta...')
-            xmpp.delete()
-            xmpp.disconnect()
+            my_client_session.delete()
+            time.sleep(3)
+            my_client_session.disconnect()
             is_in_session = False
         else:
             print("Esa opcion no esta disponible.")
-
-
-
 
 
 
@@ -137,12 +121,12 @@ while(still_running):
         print('\n--------Iniciemos Sesion--------')
         uname = input('Nombre  de usuario: ')
         upass = getpass('Contrasenia: ')
-        xmpp = my_client(jid= uname, password = upass)
+        my_client_session = my_client(jid= uname, password = upass)
 
-        xmpp.add_event_handler('session_start', my_session)
+        my_client_session.add_event_handler('session_start', my_session)
 
-        xmpp.connect()
-        xmpp.process()
+        my_client_session.connect()
+        my_client_session.process(forever=False)
         
     elif choice == '2':
         print('\n--------Registremos un nuevo usuario--------')
