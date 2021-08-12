@@ -1,5 +1,6 @@
-from slixmpp.xmlstream.asyncio import asyncio
-
+from logging import fatal
+from re import U
+from file_transfer import File_Upload
 from client import register_to_server, my_client
 from get_my_roster import GetRoster
 from private_msg import PrivMsg
@@ -32,7 +33,7 @@ def mainMenu():
     4. Mandar mensaje privado
     5. Madar mensaje general
     6. Definir mensaje de presencia
-    7. Enviar/recibir archivos
+    7. Enviar archivos
     8. Cerrar Sesion
     9. Eliminiar cuenta
     ''')
@@ -143,8 +144,8 @@ def my_session(event):
             for opt in show_options:
                 print(str(i)+". "+opt)
                 i += 1
-            show_input = input('Show: ')
-            status = input('Status: ')
+            show_input = input('Option para show: ')
+            status = input('Su nuevo status: ')
             try:
                 show = show_options[int(show_input)-1]
             except:
@@ -155,7 +156,12 @@ def my_session(event):
 
         elif option == '7':
             print('--------Mandar o recivir un file--------')
-            print('WORKING ON IT... :c')
+            uname = input("Ingrese a quien va dirigido el file: ")
+            file = input("Ingrese el file name que desea mandar: ")
+            if file and uname and '@' in uname:
+                send_file = File_Upload(my_client_session.jid, my_client_session.password, uname, file, my_client_session.boundjid.domain)
+                send_file.connect()
+                send_file.process(forever=False)
         elif option == '8':
             print("Cerrando Sesion...")
             my_client_session.disconnect()
@@ -191,13 +197,6 @@ while(still_running):
         upass = getpass('Contrasenia: ')
 
         xmpp = register_to_server(jid=uname, password=upass)
-        xmpp.register_plugin('xep_0030')  # Service Discovery
-        xmpp.register_plugin('xep_0004')  # Data forms
-        xmpp.register_plugin('xep_0066')  # Out-of-band Data
-        xmpp.register_plugin('xep_0077')  # In-band Registration
-        xmpp.register_plugin('xep_0045')  # Groupchat
-        xmpp.register_plugin('xep_0199')  # XMPP Ping
-        xmpp['xep_0077'].force_registration = True
 
         xmpp.connect()
         xmpp.process(forever=False)

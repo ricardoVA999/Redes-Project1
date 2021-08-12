@@ -11,6 +11,13 @@ class register_to_server(slixmpp.ClientXMPP):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.add_event_handler('register', self.register)
         self.add_event_handler('disconnected', self.got_diss)
+        self.register_plugin('xep_0030')  #Service Discovery
+        self.register_plugin('xep_0004')  #Data forms
+        self.register_plugin('xep_0066')  #Out-of-band Data
+        self.register_plugin('xep_0077')  #In-band Registration
+        self.register_plugin('xep_0045')  #Multi user chat
+        self.register_plugin('xep_0199')  #XMPP Ping
+        self['xep_0077'].force_registration = True
     
     def got_diss(self, event):
         print('Got disconnected')
@@ -42,21 +49,26 @@ class my_client(slixmpp.ClientXMPP):
         self.add_event_handler('error', self.handle_error)
         self.add_event_handler('presence_subscribed', self.new_subscribed)
         self.add_event_handler('message', self.message)
+        self.add_event_handler('got_offline', self.handle_offline)
+        self.add_event_handler('got_online', self.handle_online)
 
-        self.register_plugin('xep_0030')
-        self.register_plugin('xep_0004')
-        self.register_plugin('xep_0066')
-        self.register_plugin('xep_0085')
-        self.register_plugin('xep_0077')
-        self.register_plugin('xep_0050')
-        self.register_plugin('xep_0047')
-        self.register_plugin('xep_0231')
-        self.register_plugin('xep_0045')
-        self.register_plugin('xep_0092')
+        self.register_plugin('xep_0004') #Data Forms
+        self.register_plugin('xep_0030') #Service Discovery
+        self.register_plugin('xep_0045') #Multi user chat
+        self.register_plugin('xep_0047') #In-band Bytestreams
+        self.register_plugin('xep_0050') #Ad-Hoc Commands
+        self.register_plugin('xep_0066') #Out of Band Data
+        self.register_plugin('xep_0077') #In-band Registration
+        self.register_plugin('xep_0085') #Chat State Notifications
+        self.register_plugin('xep_0092') #Software version
+        self.register_plugin('xep_0199') #Xmpp ping
+        self.register_plugin('xep_0231') #Bits of Binary
+
+        #Transferencia de file
         self.register_plugin('xep_0095')
         self.register_plugin('xep_0096')
         self.register_plugin('xep_0060')
-        self.register_plugin('xep_0199')
+       
 
         self['xep_0077'].force_registration = True
 
@@ -75,6 +87,12 @@ class my_client(slixmpp.ClientXMPP):
         print("ERROR")
         self.disconnect()
 
+    def handle_offline(self, presence):
+        print(str(presence['from']).split('/')[0] + " se desconecto.")
+
+    def handle_online(self, presence):
+        print(str(presence['from']).split('/')[0] + " se conecto.")
+
     def failed(self, event):
         print("Fallo al comprobar sus credenciales...")
 
@@ -89,7 +107,9 @@ class my_client(slixmpp.ClientXMPP):
         print(presence.get_from()+' se suscribio a ti!')
 
     def set_presence(self, show, status):
-        self.send_presence(pshow=show, pstatus=status)
+        self.send_presence(show, status)
+        self.get_roster()
+        time.sleep(3)
     
     def delete(self):
         resp = self.Iq()
@@ -107,15 +127,6 @@ class my_client(slixmpp.ClientXMPP):
             print("No se recibio respuesta del servidor")
             self.disconnect()
     
-    """def create_room(self, room, nick):
-        status = 'NEW'
-
-        self.plugin['xep_0045'].joinMUC(room,nick,pstatus=status,pfrom=self.boundjid.full)
-
-        self.plugin['xep_0045'].setAffiliation(room, self.boundjid.full, affiliation='owner')
-        self.plugin['xep_0045'].configureRoom(room, ifrom=self.boundjid.full)
-
-        self.rooms[room] = group(room, nick, status)"""
     
     def add_friend(self, JID):
         self.send_presence_subscription(pto=JID, ptype='subscribe', pfrom = self.boundjid.bare)
