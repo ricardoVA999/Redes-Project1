@@ -7,7 +7,7 @@ from muc import *
 from getpass import getpass
 import time
 
-
+show_options = ['chat', 'away', 'xa', 'dnd']
 still_running = True
 
 def logginMenu():
@@ -19,8 +19,10 @@ def logginMenu():
 def groupMenu():
     print('''--------Menu de Grupos--------
     1. Crear Grupo
-    2. Unirse y mandar mensaje a grupo
-    3. Cancelar''')
+    2. Unirse a grupo
+    3. Mandar mensaje a grupo
+    4. Salir del grupo
+    5. Cancelar''')
 
 def mainMenu():
     print('''
@@ -89,8 +91,10 @@ def my_session(event):
                 print('--------Creando nuevo grupo--------')
                 name = input('Group URL: ')
                 nick = input('Nickname: ')
-                if nick and name:
-                    print("Grupo Creado!")
+                if nick and name and '@conference.' in name:
+                    group_create = create_group(my_client_session.jid, my_client_session.password, name, nick)
+                    group_create.connect()
+                    group_create.process(forever=False)
                 else:
                     ("Ingrese valores correctos")
                     continue
@@ -105,8 +109,53 @@ def my_session(event):
                 else:
                     print("Datos ingresados incorrectamente")
                     continue
+            elif groupOpt == '3':
+                print('--------Mandar mensaje a grupo--------')
+                name = input('Room URL: ')
+                msg = input('Mensaje: ')
+                if msg and name and '@conference.' in name:
+                    group_send = sendmsg_group(my_client_session.jid, my_client_session.password, name, msg)
+                    group_send.connect()
+                    group_send.process(forever=False)
+                else:
+                    print("Datos ingresados incorrectamente")
+                    continue
+            elif groupOpt == '4':
+                print('--------Salir del grupo--------')
+                name = input('Room URL: ')
+                nick = input('Nick: ')
+                if nick and name and '@conference.' in name:
+                    group_exit = leave_group(my_client_session.jid, my_client_session.password, name, nick)
+                    group_exit.connect()
+                    group_exit.process(forever=False)
+                else:
+                    print("Datos ingresados incorrectamente")
+                    continue
+            elif groupOpt == '5':
+                print("Regresando a menu principal...")
             else:
                 print('Opcion no valida')
+
+        elif option == '6':
+            print('--------Settemos un nuevo mensaje de presencia--------')
+            print('Elija una de las siguientes:')
+            i = 1
+            for opt in show_options:
+                print(str(i)+". "+opt)
+                i += 1
+            show_input = input('Show: ')
+            status = input('Status: ')
+            try:
+                show = show_options[int(show_input)-1]
+            except:
+                print("Opcion ingresada invalida setteando defoult 'available'")
+                show = 'available'
+            my_client_session.set_presence(show, status)
+            print('Seteado correctamente')
+
+        elif option == '7':
+            print('--------Mandar o recivir un file--------')
+            print('WORKING ON IT... :c')
         elif option == '8':
             print("Cerrando Sesion...")
             my_client_session.disconnect()

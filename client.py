@@ -87,6 +87,9 @@ class my_client(slixmpp.ClientXMPP):
 
     def new_subscribed(self, presence):
         print(presence.get_from()+' se suscribio a ti!')
+
+    def set_presence(self, show, status):
+        self.send_presence(pshow=show, pstatus=status)
     
     def delete(self):
         resp = self.Iq()
