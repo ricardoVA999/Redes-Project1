@@ -31,3 +31,16 @@ Uso de las diferentes funcionalidades:
 - Usuario a agregar: usuario de la forma 'nombre@example.com' en donde 'example.com' es el dominio del servidor xmpp a utilizar.
 #### Ver info de contacto: devuelve la info del usuario especificado
 - Usuario a agregar: usuario de la forma 'nombre@example.com' en donde 'example.com' es el dominio del servidor xmpp a utilizar.
+#### Mensaje 1 a 1: opcion para mandar mensajes 1 a 1 con el usuario especficicado.
+- Usuario a agregar: usuario de la forma 'nombre@example.com' en donde 'example.com' es el dominio del servidor xmpp a utilizar.
+- Mensaje a mandar: mensaje a mandar a la persona.
+#### Mensaje grupal: creacion de grupo, unirse a grupo, mandar mensaje, salir de grupo.
+- Grupo a utilizar: nombre del grupo de la forma 'nombre@conference.example.com' en donde 'example.com' es el dominio del servidor xmpp a utilizar.
+- Mensaje a mandar: mensaje a enviar al grupo.
+- Alias: alias que se tendra dentro del grupo.
+#### Definir mensaje de presencia: cambia el mensaje de presencia del usuario
+- Show: forma del mensaje de presencia
+- Mensaje: nuevo mensaje de presencia
+#### Envio de files (Not quite done)
+- Path del file: path del file a mandar
+- Usuario: usuario de la forma 'nombre@example.com' en donde 'example.com' es el dominio del servidor xmpp a utilizar, aquien va dirigido el file.
